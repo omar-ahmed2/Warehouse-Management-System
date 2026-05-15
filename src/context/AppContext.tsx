@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { AppData, STORAGE_KEY, SEED_DATA, INITIAL_DATA } from '../utils/seedData';
+import { AppData, STORAGE_KEY, INITIAL_DATA } from '../utils/seedData';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { Product } from '../types/product.types';
 import { User } from '../types/user.types';
@@ -28,7 +28,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getItem, setItem } = useLocalStorage();
-  const [data, setData] = useState<AppData>(SEED_DATA);
+  const [data, setData] = useState<AppData>(INITIAL_DATA);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (stored) {
       setData(stored);
     } else {
-      setItem(STORAGE_KEY, SEED_DATA);
+      setItem(STORAGE_KEY, INITIAL_DATA);
     }
   }, []);
 

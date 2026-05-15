@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { User } from '../types/user.types';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { STORAGE_KEY, SEED_DATA, AppData } from '../utils/seedData';
+import { STORAGE_KEY, INITIAL_DATA, AppData } from '../utils/seedData';
 
 interface AuthContextType {
   user: User | null;
@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = () => {
       const storedData = getItem(STORAGE_KEY) as AppData | null;
       if (!storedData) {
-        setItem(STORAGE_KEY, SEED_DATA);
+        setItem(STORAGE_KEY, INITIAL_DATA);
       }
 
       const sessionUser = window.sessionStorage.getItem('makhzan_session');
