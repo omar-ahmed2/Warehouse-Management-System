@@ -86,7 +86,17 @@ export const OutgoingForm: React.FC<OutgoingFormProps> = ({ onSubmit, onCancel }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName || items.some(i => !i.productId)) {
-        alert('يرجى ملء جميع الحقول المطلوبة واختيار المنتجات');
+        showToast('يرجى ملء جميع الحقول المطلوبة واختيار المنتجات', 'error');
+        return;
+    }
+
+    if (items.some(i => i.qty <= 0 || i.unitPrice <= 0)) {
+        showToast('الكمية وسعر الوحدة يجب أن يكونا أكبر من صفر', 'error');
+        return;
+    }
+
+    if (advanceCollection < 0) {
+        showToast('مبلغ التحصيل لا يمكن أن يكون بالسالب', 'error');
         return;
     }
 
@@ -139,6 +149,7 @@ export const OutgoingForm: React.FC<OutgoingFormProps> = ({ onSubmit, onCancel }
             <Input 
             label="مبلغ التحصيل (كاش)" 
             type="number"
+            min="0"
             value={advanceCollection}
             onChange={(e) => setAdvanceCollection(Number(e.target.value))}
             placeholder="0.00"
@@ -194,6 +205,8 @@ export const OutgoingForm: React.FC<OutgoingFormProps> = ({ onSubmit, onCancel }
                         <Input 
                         label={index === 0 ? "سعر البيع" : undefined}
                         type="number"
+                        min="0.01"
+                        step="0.01"
                         value={item.unitPrice}
                         onChange={(e) => handleItemChange(index, 'unitPrice', Number(e.target.value))}
                         />

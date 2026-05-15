@@ -3,6 +3,7 @@ import { StatCard } from '../components/dashboard/StatCard';
 import { RevenueChart } from '../components/dashboard/RevenueChart';
 import { LatestTransactions } from '../components/dashboard/LatestTransactions';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../utils/formatCurrency';
 import { 
   PieChart, 
@@ -14,7 +15,9 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const { data } = useAppContext();
+  const { user } = useAuth();
   const totalProducts = data.products.length;
+
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString('ar-EG', { 
@@ -23,6 +26,16 @@ export const DashboardPage: React.FC = () => {
     month: 'long', 
     year: 'numeric' 
   });
+
+  const isToday = (dateString: string) => {
+    const d = new Date(dateString);
+    return d.getDate() === today.getDate() &&
+           d.getMonth() === today.getMonth() &&
+           d.getFullYear() === today.getFullYear();
+  };
+
+  const todaysIncoming = data.incomingOrders.filter(o => isToday(o.createdAt));
+  const todaysOutgoing = data.outgoingOrders.filter(o => isToday(o.createdAt));
 
   // Category Distribution Data
   const categoryData = data.products.reduce((acc: any[], p) => {
@@ -41,7 +54,7 @@ export const DashboardPage: React.FC = () => {
         <div className="space-y-1">
           <p className="text-[10px] font-black font-Cairo text-slate-400 uppercase tracking-[0.2em]">لوحة التحكم</p>
           <h2 className="text-4xl font-black font-Cairo text-slate-800 tracking-tight">
-            مرحباً، {data.users[0]?.name.split(' ')[0] || 'عمر'} <span className="animate-pulse">👋</span>
+            مرحباً، {user?.name.split(' ')[0] || 'عمر'} <span className="animate-pulse">👋</span>
           </h2>
           <p className="text-sm text-slate-500 font-Tajawal font-medium opacity-80">{formattedDate}</p>
         </div>
@@ -56,8 +69,8 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="حركات اليوم"
-          description={`${data.incomingOrders.length} وارد - ${data.outgoingOrders.length} صادر`}
-          value={(data.incomingOrders.length + data.outgoingOrders.length).toLocaleString('ar-EG')}
+          description={`${todaysIncoming.length} وارد - ${todaysOutgoing.length} صادر`}
+          value={(todaysIncoming.length + todaysOutgoing.length).toLocaleString('ar-EG')}
           icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>}
           color="bg-blue-50"
           textColor="text-blue-500"

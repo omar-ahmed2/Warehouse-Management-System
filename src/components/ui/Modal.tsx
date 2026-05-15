@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ModalProps {
@@ -24,6 +25,9 @@ export const Modal: React.FC<ModalProps> = ({
     } else {
       document.body.style.overflow = 'auto';
     }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
   }, [isOpen]);
 
   const sizes = {
@@ -34,30 +38,31 @@ export const Modal: React.FC<ModalProps> = ({
     full: 'max-w-full m-0 h-full rounded-none',
   };
 
-  return (
+  const content = (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4 md:p-6 overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
+        <div className="fixed inset-0 z-[9999] flex items-start md:items-center justify-center p-4 md:p-6 overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
           {/* Backdrop */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] transition-opacity"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-[4px]"
             onClick={onClose}
           />
           
           {/* Modal Container */}
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className={`
               relative w-full ${sizes[size]} bg-white 
-              rounded-2xl md:rounded-3xl border border-slate-200
+              rounded-2xl md:rounded-[32px] border border-slate-200
               shadow-2xl flex flex-col max-h-[95vh] md:max-h-[90vh]
-              overflow-hidden z-[51] my-auto
+              overflow-hidden z-[10000] my-auto
             `}
           >
             {/* Header */}
@@ -90,4 +95,8 @@ export const Modal: React.FC<ModalProps> = ({
       )}
     </AnimatePresence>
   );
+
+  return createPortal(content, document.body);
 };
+
+

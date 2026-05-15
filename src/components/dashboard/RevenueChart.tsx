@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -9,16 +9,44 @@ import {
   ResponsiveContainer, 
   Legend
 } from 'recharts';
+import { useAppContext } from '../../context/AppContext';
 
 export const RevenueChart: React.FC = () => {
-  const data = [
-    { month: 'يناير', incoming: 45000, outgoing: 35000 },
-    { month: 'فبراير', incoming: 52000, outgoing: 48000 },
-    { month: 'مارس', incoming: 38000, outgoing: 42000 },
-    { month: 'أبريل', incoming: 65000, outgoing: 58000 },
-    { month: 'مايو', incoming: 48000, outgoing: 52000 },
-    { month: 'يونيو', incoming: 55000, outgoing: 62000 },
-  ];
+  const { data: appData } = useAppContext();
+
+  const chartData = useMemo(() => {
+    const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    
+    // Get last 6 months
+    const now = new Date();
+    const result = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthIndex = d.getMonth();
+      const monthLabel = months[monthIndex];
+      const year = d.getFullYear();
+
+      const monthlyIncoming = appData.incomingOrders.filter(o => {
+        const oDate = new Date(o.createdAt);
+        return oDate.getMonth() === monthIndex && oDate.getFullYear() === year;
+      }).reduce((sum, o) => sum + o.totalAmount, 0);
+
+      const monthlyOutgoing = appData.outgoingOrders.filter(o => {
+        const oDate = new Date(o.createdAt);
+        return oDate.getMonth() === monthIndex && oDate.getFullYear() === year;
+      }).reduce((sum, o) => sum + o.totalAmount, 0);
+
+      result.push({
+        month: monthLabel,
+        incoming: monthlyIncoming,
+        outgoing: monthlyOutgoing
+      });
+    }
+
+    return result;
+  }, [appData.incomingOrders, appData.outgoingOrders]);
+
 
   return (
     <div className="h-full w-full">
@@ -31,7 +59,7 @@ export const RevenueChart: React.FC = () => {
 
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
             <XAxis 
               dataKey="month" 

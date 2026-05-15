@@ -160,3 +160,31 @@ body {
   border-radius: 50%;
   display: inline-block;
 }
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  
+  /* Reset background and text colors for print */
+  @page {
+    margin: 1cm;
+  }
+  body {
+    background-color: white !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}

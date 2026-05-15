@@ -32,8 +32,13 @@ export const FinancePage: React.FC = () => {
     return acc + (item.currentQty * (product?.buyPrice || 0));
   }, 0);
 
-  // Simple Profit estimate for visual purposes
-  const estimatedProfit = cashInVault > 0 ? cashInVault * 0.4 : 0;
+  // Net Profit: Gross profit from sales minus company operating expenses
+  const totalGrossProfit = data.outgoingOrders.reduce((acc, o) => acc + (o.totalProfit || 0), 0);
+  const operatingExpenses = (data.financeEntries || [])
+    .filter(e => e.type === 'company_expense')
+    .reduce((acc, e) => acc + Math.abs(e.amount), 0);
+  
+  const estimatedProfit = totalGrossProfit - operatingExpenses;
 
   const customerDebts = data.outgoingOrders.reduce((acc, o) => acc + o.amountRemaining, 0);
   const supplierDebts = data.incomingOrders.reduce((acc, o) => acc + o.amountDue, 0);
@@ -64,11 +69,11 @@ export const FinancePage: React.FC = () => {
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 22L14 16L18 22"/><path d="M2 10L6 4L10 10"/><path d="M12 4V12"/></svg>
     },
     { 
-      title: 'صافي الربح المتوقع', 
+      title: 'صافي الربح', 
       value: formatCurrency(estimatedProfit), 
       color: 'bg-amber-50', 
       textColor: 'text-amber-600',
-      description: 'تقدير المكسب بعد خصم التكاليف',
+      description: 'إجمالي أرباح المبيعات بعد خصم مصروفات الشركة',
       icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
     },
     { 
@@ -142,7 +147,7 @@ export const FinancePage: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {statsProps.map((s, j) => (
             <StatCard key={j} {...s} />
         ))}

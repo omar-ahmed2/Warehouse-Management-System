@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { EntryType } from '../../types/finance.types';
+import { useAppContext } from '../../context/AppContext';
 
 interface ExpensesFormProps {
   onSubmit: (data: { type: EntryType; amount: number; description: string }) => void;
@@ -22,9 +23,17 @@ export const ExpensesForm: React.FC<ExpensesFormProps> = ({ onSubmit, onCancel }
     { value: 'company_expense', label: 'مصاريف تشغيلية' },
   ];
 
+  const { showToast } = useAppContext();
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.amount <= 0 || !formData.description) return;
+    if (formData.amount <= 0) {
+      showToast('القيمة المالية يجب أن تكون أكبر من صفر', 'error');
+      return;
+    }
+    if (!formData.description) {
+      showToast('يرجى إدخال البيان الوصفي', 'error');
+      return;
+    }
     onSubmit(formData);
   };
 

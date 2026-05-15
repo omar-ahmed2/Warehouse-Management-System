@@ -20,7 +20,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
   }, [title]);
 
   return (
-    <div className="min-h-screen flex bg-[var(--bg-primary)] overflow-hidden">
+    <div className="min-h-screen flex bg-[var(--bg-primary)] overflow-hidden no-print">
       <Sidebar isCollapsed={isSidebarCollapsed} toggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
       
       {/* Mobile Backdrop */}

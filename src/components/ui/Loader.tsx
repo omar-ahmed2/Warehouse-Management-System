@@ -21,9 +21,11 @@ export const Loader: React.FC<LoaderProps> = ({
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--bg-primary)]">
-        {spinner}
-        <p className="mt-4 text-text-secondary font-medium animate-pulse font-Cairo">جاري التحميل...</p>
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-bg-primary/80 backdrop-blur-md">
+        <div className="bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 flex flex-col items-center">
+            {spinner}
+            <p className="mt-4 text-accent-primary font-black animate-pulse font-Cairo tracking-wide text-lg">جاري التحميل...</p>
+        </div>
       </div>
     );
   }
@@ -34,3 +36,5 @@ export const Loader: React.FC<LoaderProps> = ({
     </div>
   );
 };
+
+

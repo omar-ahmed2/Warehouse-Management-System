@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -11,6 +11,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { formatDate } from '../utils/formatDate';
 import { OutgoingOrder, OrderStatus } from '../types/inventory.types';
 import { FinanceEntry } from '../types/finance.types';
+import { InvoicePrint } from '../components/ui/InvoicePrint';
 
 export const OutgoingPage: React.FC = () => {
   const { data, updateData, showToast } = useAppContext();
@@ -19,6 +20,16 @@ export const OutgoingPage: React.FC = () => {
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OutgoingOrder | null>(null);
   const [collectAmount, setCollectAmount] = useState(0);
+  const [printOrder, setPrintOrder] = useState<OutgoingOrder | null>(null);
+
+  useEffect(() => {
+    if (printOrder) {
+      setTimeout(() => {
+        window.print();
+        setPrintOrder(null);
+      }, 100);
+    }
+  }, [printOrder]);
 
   const canManage = user?.role === 'manager' || user?.role === 'supervisor';
 
@@ -66,6 +77,13 @@ export const OutgoingPage: React.FC = () => {
       header: 'إجراءات',
       render: (o: OutgoingOrder) => (
         <div className="flex items-center gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setPrintOrder(o); }}
+            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
+            title="طباعة الفاتورة"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          </button>
           {canManage && o.amountRemaining > 0 && (
             <button 
               onClick={(e) => { e.stopPropagation(); setSelectedOrder(o); setCollectAmount(o.amountRemaining); setIsCollectionModalOpen(true); }}
@@ -90,14 +108,30 @@ export const OutgoingPage: React.FC = () => {
 
   const handleOutgoingSubmit = (formData: any) => {
     const orderId = `OUT-${Math.floor(1000 + Math.random() * 9000)}`;
-    const totalAmount = formData.items.reduce((s: number, i: any) => s + (i.qty * i.unitPrice), 0);
+    
+    let totalProfit = 0;
+    const itemsWithProfit = formData.items.map((item: any) => {
+      const product = data.products.find(p => p.id === item.productId);
+      const buyPrice = product?.buyPrice || 0;
+      const profitPerUnit = item.unitPrice - buyPrice;
+      const itemTotalProfit = profitPerUnit * item.qty;
+      totalProfit += itemTotalProfit;
+      
+      return {
+        ...item,
+        productName: product?.name || 'منتج غير معروف',
+        profit: itemTotalProfit
+      };
+    });
+
+    const totalAmount = itemsWithProfit.reduce((s: number, i: any) => s + (i.qty * i.unitPrice), 0);
     const amountRemaining = totalAmount - formData.advanceCollection;
     const status: OrderStatus = formData.advanceCollection === 0 ? 'pending' : (amountRemaining === 0 ? 'completed' : 'partial');
 
     let finalCustomerId = formData.customerId;
     let newCustomers = [...data.customers];
 
-    // If new customer, create one
+    // If new customer, create one (no need to track totals — computed from orders)
     if (!formData.customerId || formData.customerId === 'new') {
       finalCustomerId = `CUS-${Date.now()}`;
       newCustomers.push({
@@ -105,32 +139,21 @@ export const OutgoingPage: React.FC = () => {
         name: formData.customerName,
         phone: 'غير مسجل',
         address: 'غير مسجل',
-        totalPurchases: totalAmount,
-        totalPaid: formData.advanceCollection,
-        totalDebt: amountRemaining,
+        totalPurchases: 0,
+        totalPaid: 0,
+        totalDebt: 0,
         createdAt: new Date().toISOString()
       });
-    } else {
-      // Update existing customer
-      newCustomers = newCustomers.map(c => {
-        if (c.id === formData.customerId) {
-          return {
-            ...c,
-            totalPurchases: c.totalPurchases + totalAmount,
-            totalPaid: c.totalPaid + formData.advanceCollection,
-            totalDebt: c.totalDebt + amountRemaining
-          };
-        }
-        return c;
-      });
     }
+    // ✅ لا يوجد تحديث يدوي للعميل — الأرقام بتتحسب من الأوامر مباشرة
 
     const newOrder: OutgoingOrder = {
       id: orderId,
       customerId: finalCustomerId,
       customerName: formData.customerName,
-      items: formData.items,
+      items: itemsWithProfit,
       totalAmount,
+      totalProfit,
       amountCollected: formData.advanceCollection,
       amountRemaining,
       status,
@@ -207,20 +230,9 @@ export const OutgoingPage: React.FC = () => {
       createdBy: user?.id || '1',
     };
 
-    const newCustomers = data.customers.map(c => {
-      if (c.id === selectedOrder.customerId) {
-        return {
-          ...c,
-          totalPaid: c.totalPaid + collectAmount,
-          totalDebt: c.totalDebt - collectAmount
-        };
-      }
-      return c;
-    });
-
     updateData({
       outgoingOrders: updatedOrders,
-      customers: newCustomers,
+      // ✅ لا يوجد تحديث يدوي لبيانات العميل — الأرقام بتتحسب تلقائياً من الأوامر
       financeEntries: [...data.financeEntries, newFinanceEntry]
     });
 
@@ -313,6 +325,8 @@ export const OutgoingPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {printOrder && <InvoicePrint order={printOrder} type="outgoing" />}
     </>
   );
 };

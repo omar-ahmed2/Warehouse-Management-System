@@ -144,15 +144,20 @@ export const UsersPage: React.FC = () => {
 
   return (
     <>
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <p className="text-text-secondary font-Tajawal">إضافة وإدارة حسابات المستخدمين وصلاحياتهم في النظام</p>
-          <Button onClick={() => { setEditingUser(undefined); setFormData({ name: '', email: '', password: '', role: 'warehouse_keeper' }); setIsModalOpen(true); }}>
+      <div className="flex flex-col gap-8 pb-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+           <div>
+              <h1 className="text-3xl font-black text-slate-800 font-Cairo tracking-tight">إدارة المستخدمين</h1>
+              <p className="text-slate-500 mt-2 font-Tajawal font-medium">إضافة حسابات الفريق وتحديد صلاحياتهم في النظام</p>
+           </div>
+          <Button onClick={() => { setEditingUser(undefined); setFormData({ name: '', email: '', password: '', role: 'warehouse_keeper' }); setIsModalOpen(true); }} className="py-4 px-8 rounded-2xl">
             إضافة مستخدم جديد
           </Button>
         </div>
 
-        <Table columns={columns} data={data.users} searchKey="name" />
+        <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden">
+           <Table columns={columns} data={data.users} searchKey="name" />
+        </div>
       </div>
 
       <Modal 
@@ -161,36 +166,44 @@ export const UsersPage: React.FC = () => {
         title={editingUser ? 'تعديل بيانات مستخدم' : 'إضافة مستخدم جديد'}
         size="md"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5 py-2">
            <Input 
               label="الاسم الكامل" 
+              placeholder="مثال: أحمد محمد"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>}
            />
            <Input 
               label="البريد الإلكتروني" 
               type="email"
+              placeholder="user@example.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>}
            />
            <Input 
               label="كلمة المرور" 
               type="password"
+              placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>}
            />
            <Select 
              label="الدور / الصلاحية" 
              options={roles} 
              value={formData.role}
              onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+             icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}
            />
-           <div className="flex justify-end gap-2 pt-6 border-t border-border-light">
-             <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)}>إلغاء</Button>
-             <Button type="submit">{editingUser ? 'تحديث' : 'إضافة'}</Button>
+           <div className="flex gap-3 pt-6">
+             <button type="submit" className="flex-1 bg-accent-primary text-white font-black font-Cairo py-4 rounded-2xl shadow-lg shadow-accent-primary/20 hover:opacity-90 transition-all">{editingUser ? 'تحديث البيانات' : 'إنشاء الحساب'}</button>
+             <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 text-slate-400 font-bold font-Cairo hover:bg-slate-50 rounded-xl transition-all">إلغاء</button>
            </div>
         </form>
       </Modal>
     </>
   );
 };
+

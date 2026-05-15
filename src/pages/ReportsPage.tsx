@@ -33,16 +33,25 @@ export const ReportsPage: React.FC = () => {
     { id: 'finance', label: 'المالية', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg> },
   ];
 
+  // ✅ دالة مساعدة: تحول تاريخ النهاية لآخر اليوم (23:59:59.999) عشان يبقى شاملاً
+  const toEndOfDay = (dateStr: string): Date => {
+    const d = new Date(dateStr);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  };
+
   const filteredOutgoing = useMemo(() => data.outgoingOrders.filter(o => {
     if (!dateRange.from || !dateRange.to) return true;
     const date = new Date(o.createdAt);
-    return date >= new Date(dateRange.from) && date <= new Date(dateRange.to);
+    // ✅ محلول: تاريخ البداية = 00:00، تاريخ النهاية = 23:59:59.999
+    return date >= new Date(dateRange.from) && date <= toEndOfDay(dateRange.to);
   }), [data.outgoingOrders, dateRange]);
 
   const filteredIncoming = useMemo(() => data.incomingOrders.filter(o => {
     if (!dateRange.from || !dateRange.to) return true;
     const date = new Date(o.createdAt);
-    return date >= new Date(dateRange.from) && date <= new Date(dateRange.to);
+    // ✅ محلول: تاريخ البداية = 00:00، تاريخ النهاية = 23:59:59.999
+    return date >= new Date(dateRange.from) && date <= toEndOfDay(dateRange.to);
   }), [data.incomingOrders, dateRange]);
 
   // Chart Data: Top Sellers

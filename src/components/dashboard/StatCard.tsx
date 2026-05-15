@@ -18,7 +18,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   textColor
 }) => {
   return (
-    <div className="bg-white border border-slate-100 rounded-[32px] p-6 flex flex-col justify-between group h-44 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
+    <div className="bg-white border border-slate-100 rounded-[32px] p-6 flex flex-col justify-between group h-50 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
       <div className="absolute -right-4 -top-4 w-24 h-24 bg-slate-50/50 rounded-full group-hover:scale-150 transition-transform duration-700 pointer-events-none"></div>
       
       <div className="flex justify-start relative z-10">

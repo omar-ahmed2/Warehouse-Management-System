@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -11,6 +11,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { formatDate } from '../utils/formatDate';
 import { IncomingOrder, OrderStatus } from '../types/inventory.types';
 import { FinanceEntry } from '../types/finance.types';
+import { InvoicePrint } from '../components/ui/InvoicePrint';
 
 export const IncomingPage: React.FC = () => {
   const { data, updateData, showToast } = useAppContext();
@@ -19,6 +20,16 @@ export const IncomingPage: React.FC = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<IncomingOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
+  const [printOrder, setPrintOrder] = useState<IncomingOrder | null>(null);
+
+  useEffect(() => {
+    if (printOrder) {
+      setTimeout(() => {
+        window.print();
+        setPrintOrder(null);
+      }, 100);
+    }
+  }, [printOrder]);
 
   const canManage = user?.role === 'manager' || user?.role === 'supervisor';
 
@@ -66,6 +77,13 @@ export const IncomingPage: React.FC = () => {
       header: 'إجراءات',
       render: (o: IncomingOrder) => (
         <div className="flex items-center gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setPrintOrder(o); }}
+            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
+            title="طباعة الفاتورة"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          </button>
           {canManage && o.amountDue > 0 && (
             <button 
               onClick={(e) => { e.stopPropagation(); setSelectedOrder(o); setPaymentAmount(o.amountDue); setIsPaymentModalOpen(true); }}
@@ -97,7 +115,7 @@ export const IncomingPage: React.FC = () => {
     let finalSupplierId = formData.supplierId;
     let newSuppliers = [...data.suppliers];
 
-    // If new supplier, create one
+    // If new supplier, create one (no need to track totals — computed from orders)
     if (!formData.supplierId || formData.supplierId === 'new') {
       finalSupplierId = `SUP-${Date.now()}`;
       newSuppliers.push({
@@ -105,25 +123,14 @@ export const IncomingPage: React.FC = () => {
         name: formData.supplierName,
         phone: 'غير مسجل',
         address: 'غير مسجل',
-        totalSourcing: totalAmount,
-        totalPaid: formData.advancePayment,
-        totalDebt: amountDue,
+        totalSourcing: 0,
+        totalPaid: 0,
+        totalDebt: 0,
         createdAt: new Date().toISOString()
       });
-    } else {
-      // Update existing supplier
-      newSuppliers = newSuppliers.map(s => {
-        if (s.id === formData.supplierId) {
-          return {
-            ...s,
-            totalSourcing: s.totalSourcing + totalAmount,
-            totalPaid: s.totalPaid + formData.advancePayment,
-            totalDebt: s.totalDebt + amountDue
-          };
-        }
-        return s;
-      });
     }
+    // ✅ لا يوجد تحديث يدوي للمورد — الأرقام بتتحسب من الأوامر مباشرة
+
 
     const newOrder: IncomingOrder = {
       id: orderId,
@@ -207,20 +214,9 @@ export const IncomingPage: React.FC = () => {
       createdBy: user?.id || '1',
     };
 
-    const newSuppliers = data.suppliers.map(s => {
-      if (s.id === selectedOrder.supplierId) {
-        return {
-          ...s,
-          totalPaid: s.totalPaid + paymentAmount,
-          totalDebt: s.totalDebt - paymentAmount
-        };
-      }
-      return s;
-    });
-
     updateData({
       incomingOrders: updatedOrders,
-      suppliers: newSuppliers,
+      // ✅ لا يوجد تحديث يدوي لبيانات المورد — الأرقام بتتحسب تلقائياً من الأوامر
       financeEntries: [...data.financeEntries, newFinanceEntry]
     });
 
@@ -313,6 +309,8 @@ export const IncomingPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {printOrder && <InvoicePrint order={printOrder} type="incoming" />}
     </>
   );
 };

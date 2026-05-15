@@ -7,16 +7,80 @@ import { Table } from '../components/ui/Table';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { StatCard } from '../components/dashboard/StatCard';
+import { Input } from '../components/ui/Input';
+import {
+  computeSupplierStats,
+  computeAllSuppliersDebt,
+  computeAllSuppliersSourcing,
+} from '../utils/computeStats';
 
 export const SuppliersPage: React.FC = () => {
   const { data, updateData, showToast } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [formData, setFormData] = useState({ name: '', phone: '', address: '' });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validatePhone = (phone: string) => {
+    if (!phone) return 'رقم الهاتف مطلوب';
+    if (phone.length !== 11) return 'يجب أن يتكون رقم الهاتف من 11 رقم بالضبط';
+    if (!/^01[0125][0-9]{8}$/.test(phone)) return 'رقم الهاتف غير صحيح (يجب أن يبدأ بـ 01)';
+    return '';
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    if (value.length <= 11) {
+      setFormData({ ...formData, phone: value });
+      if (errors.phone) setErrors({ ...errors, phone: '' });
+    }
+  };
+
+  const handleAddSupplier = () => {
+    const phoneError = validatePhone(formData.phone);
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.name) newErrors.name = 'اسم المورد مطلوب';
+    if (phoneError) newErrors.phone = phoneError;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      showToast(newErrors.name || newErrors.phone || 'يرجى تصحيح الأخطاء', 'error');
+      return;
+    }
+
+    const newSupplier: Supplier = {
+      id: `s${Date.now()}`,
+      name: formData.name,
+      phone: formData.phone,
+      address: formData.address,
+      totalSourcing: 0,
+      totalPaid: 0,
+      totalDebt: 0,
+      createdAt: new Date().toISOString()
+    };
+
+    updateData({
+      suppliers: [...data.suppliers, newSupplier]
+    });
+
+    setFormData({ name: '', phone: '', address: '' });
+    setErrors({});
+    setIsModalOpen(false);
+    showToast('تم إضافة المورد الجديد بنجاح', 'success');
+  };
 
   const totalSuppliers = data.suppliers.length;
-  const totalDebts = data.suppliers.reduce((acc, s) => acc + s.totalDebt, 0);
-  const totalSourcing = data.suppliers.reduce((acc, s) => acc + s.totalSourcing, 0);
+  // ✅ محسوبة من الأوامر الفعلية — مصدر حقيقة واحد
+  const totalDebts = useMemo(
+    () => computeAllSuppliersDebt(data.incomingOrders),
+    [data.incomingOrders]
+  );
+  const totalSourcing = useMemo(
+    () => computeAllSuppliersSourcing(data.incomingOrders),
+    [data.incomingOrders]
+  );
 
   const filteredSuppliers = data.suppliers.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -26,6 +90,12 @@ export const SuppliersPage: React.FC = () => {
   const supplierOrders = useMemo(() => {
     if (!selectedSupplier) return [];
     return data.incomingOrders.filter(o => o.supplierId === selectedSupplier.id);
+  }, [selectedSupplier, data.incomingOrders]);
+
+  // ✅ إحصائيات المورد المحدد محسوبة مباشرة من أوامره
+  const selectedSupplierStats = useMemo(() => {
+    if (!selectedSupplier) return null;
+    return computeSupplierStats(selectedSupplier.id, data.incomingOrders);
   }, [selectedSupplier, data.incomingOrders]);
 
   const columns = [
@@ -43,16 +113,24 @@ export const SuppliersPage: React.FC = () => {
     { 
       key: 'totalSourcing', 
       header: 'إجمالي التوريدات', 
-      render: (s: Supplier) => <span className="font-bold text-slate-700 tabular-nums">{formatCurrency(s.totalSourcing)}</span> 
+      // ✅ محسوبة من الأوامر الفعلية
+      render: (s: Supplier) => {
+        const stats = computeSupplierStats(s.id, data.incomingOrders);
+        return <span className="font-bold text-slate-700 tabular-nums">{formatCurrency(stats.totalSourcing)}</span>;
+      }
     },
     { 
       key: 'totalDebt', 
       header: 'علينا له', 
-      render: (s: Supplier) => (
-        <Badge color={s.totalDebt > 0 ? 'danger' : 'success'}>
-          {s.totalDebt > 0 ? formatCurrency(s.totalDebt) : 'مسدد بالكامل'}
-        </Badge>
-      )
+      // ✅ محسوبة من الأوامر الفعلية
+      render: (s: Supplier) => {
+        const stats = computeSupplierStats(s.id, data.incomingOrders);
+        return (
+          <Badge color={stats.totalDebt > 0 ? 'danger' : 'success'}>
+            {stats.totalDebt > 0 ? formatCurrency(stats.totalDebt) : 'مسدد بالكامل'}
+          </Badge>
+        );
+      }
     },
     {
       key: 'actions',
@@ -93,7 +171,11 @@ export const SuppliersPage: React.FC = () => {
         </div>
 
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setFormData({ name: '', phone: '', address: '' });
+            setErrors({});
+            setIsModalOpen(true);
+          }}
           className="bg-slate-900 text-white font-Cairo font-black py-3 px-8 rounded-2xl shadow-lg shadow-slate-900/10 hover:opacity-90 transition-all flex items-center gap-2"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -152,18 +234,19 @@ export const SuppliersPage: React.FC = () => {
 
       <Modal isOpen={!!selectedSupplier} onClose={() => setSelectedSupplier(null)} title={`سجل معاملات: ${selectedSupplier?.name}`} size="xl">
         <div className="space-y-6">
+          {/* ✅ الأرقام محسوبة من الأوامر الفعلية — دائماً متزامنة */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
                 <p className="text-[10px] font-bold text-slate-400 font-Tajawal uppercase">إجمالي المشتريات</p>
-                <p className="text-xl font-black text-slate-700 font-Cairo tabular-nums">{formatCurrency(selectedSupplier?.totalSourcing || 0)}</p>
+                <p className="text-xl font-black text-slate-700 font-Cairo tabular-nums">{formatCurrency(selectedSupplierStats?.totalSourcing || 0)}</p>
              </div>
              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
                 <p className="text-[10px] font-bold text-slate-400 font-Tajawal uppercase">إجمالي المسدد</p>
-                <p className="text-xl font-black text-emerald-600 font-Cairo tabular-nums">{formatCurrency(selectedSupplier?.totalPaid || 0)}</p>
+                <p className="text-xl font-black text-emerald-600 font-Cairo tabular-nums">{formatCurrency(selectedSupplierStats?.totalPaid || 0)}</p>
              </div>
              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
                 <p className="text-[10px] font-bold text-slate-400 font-Tajawal uppercase">المتبقي للمورد</p>
-                <p className="text-xl font-black text-red-500 font-Cairo tabular-nums">{formatCurrency(selectedSupplier?.totalDebt || 0)}</p>
+                <p className="text-xl font-black text-red-500 font-Cairo tabular-nums">{formatCurrency(selectedSupplierStats?.totalDebt || 0)}</p>
              </div>
           </div>
           
@@ -178,7 +261,54 @@ export const SuppliersPage: React.FC = () => {
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-between items-center pt-2">
+             <div className="flex gap-2">
+               <button 
+                 onClick={() => {
+                   if(window.confirm('هل أنت متأكد من تصفير حساب هذا المورد؟ سيتم اعتبار جميع مستحقاته مسددة.')) {
+                     const updatedOrders = data.incomingOrders.map(o => 
+                       o.supplierId === selectedSupplier?.id 
+                         ? { ...o, amountDue: 0, amountPaid: o.totalAmount, status: 'completed' as const } 
+                         : o
+                     );
+                     // ✅ لا يوجد تحديث يدوي للمورد نفسه (totalDebt) — محسوبة ديناميكياً من updatedOrders
+                     updateData({ incomingOrders: updatedOrders });
+                     setSelectedSupplier(null);
+                     showToast('تم تصفير حساب المورد بنجاح', 'success');
+                   }
+                 }}
+                 className="px-6 py-3 bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold font-Cairo rounded-xl transition-all text-sm"
+               >
+                 تصفير الحساب
+               </button>
+               <button 
+                 onClick={() => {
+                   if(window.confirm('هل أنت متأكد من حذف هذا المورد؟ سيتم حذف جميع فواتيره والقيود المالية المرتبطة به.')) {
+                     const deletedOrderIds = data.incomingOrders
+                       .filter(o => o.supplierId === selectedSupplier?.id)
+                       .map(o => o.id);
+
+                     const updatedSuppliers = data.suppliers.filter(s => s.id !== selectedSupplier?.id);
+                     const updatedOrders   = data.incomingOrders.filter(o => o.supplierId !== selectedSupplier?.id);
+                     // ✅ حذف القيود المالية المرتبطة بفواتير المورد (حتى لا تؤثر على رصيد الخزنة)
+                     const updatedFinance  = data.financeEntries.filter(
+                       e => !e.referenceId || !deletedOrderIds.includes(e.referenceId)
+                     );
+
+                     updateData({
+                       suppliers: updatedSuppliers,
+                       incomingOrders: updatedOrders,
+                       financeEntries: updatedFinance,
+                     });
+                     setSelectedSupplier(null);
+                     showToast('تم حذف المورد وكافة سجلاته بنجاح', 'success');
+                   }
+                 }}
+                 className="px-6 py-3 bg-red-50 text-red-500 hover:bg-red-100 font-bold font-Cairo rounded-xl transition-all text-sm"
+               >
+                 حذف المورد
+               </button>
+             </div>
              <button onClick={() => setSelectedSupplier(null)} className="px-8 py-3 bg-slate-900 text-white font-black font-Cairo rounded-xl shadow-lg shadow-slate-900/10">إغلاق</button>
           </div>
         </div>
@@ -187,26 +317,46 @@ export const SuppliersPage: React.FC = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="إضافة مورد جديد" size="md">
         <div className="space-y-6">
           <p className="text-sm text-slate-500 font-Tajawal">سيتم فتح ملف مالي وتجاري لهذا المورد لمتابعة الديون والتوريدات.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-               <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider font-Cairo mr-1">اسم المورد</label>
-               <input type="text" className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 focus:ring-2 focus:ring-slate-900/10 outline-none font-Tajawal" placeholder="مثال: مصنع النصر" />
-            </div>
-            <div className="space-y-1.5">
-               <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider font-Cairo mr-1">رقم التواصل</label>
-               <input type="text" className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 focus:ring-2 focus:ring-slate-900/10 outline-none font-Tajawal" placeholder="01xxxxxxxxx" />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-               <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider font-Cairo mr-1">مقر الشركة</label>
-               <input type="text" className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 focus:ring-2 focus:ring-slate-900/10 outline-none font-Tajawal" placeholder="العنوان التجاري" />
-            </div>
+          <div className="grid grid-cols-1 gap-5">
+            <Input 
+              label="اسم المورد"
+              required
+              placeholder="مثال: مصنع النصر"
+              value={formData.name}
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: '' });
+              }}
+              error={errors.name}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>}
+            />
+            
+            <Input 
+              label="رقم التواصل"
+              required
+              placeholder="01xxxxxxxxx"
+              value={formData.phone}
+              onChange={handlePhoneChange}
+              error={errors.phone}
+              maxLength={11}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.27-2.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>}
+            />
+
+            <Input 
+              label="مقر الشركة"
+              placeholder="العنوان التجاري"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>}
+            />
           </div>
           <div className="pt-4 flex gap-3">
-             <button onClick={() => { setIsModalOpen(false); showToast('تم الحفظ بنجاح (نسخة عرض)', 'info'); }} className="flex-1 bg-slate-900 text-white font-black font-Cairo py-4 rounded-2xl">حفظ المورد</button>
-             <button onClick={() => setIsModalOpen(false)} className="px-8 text-slate-400 font-bold font-Cairo">إلغاء</button>
+             <button onClick={handleAddSupplier} className="flex-1 bg-slate-900 text-white font-black font-Cairo py-4 rounded-2xl shadow-lg shadow-accent-primary/20 hover:opacity-90 transition-all">حفظ المورد</button>
+             <button onClick={() => setIsModalOpen(false)} className="px-8 text-slate-400 font-bold font-Cairo hover:bg-slate-50 rounded-xl transition-all">إلغاء</button>
           </div>
         </div>
       </Modal>
     </div>
   );
 };
+

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Table } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../utils/formatCurrency';
 import { Product } from '../types/product.types';
 import { Badge } from '../components/ui/Badge';
+import { Select } from '../components/ui/Select';
 
 export const ProductsPage: React.FC = () => {
   const { data, updateData, showToast } = useAppContext();
@@ -17,13 +18,15 @@ export const ProductsPage: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const canManage = user?.role === 'manager' || user?.role === 'supervisor';
 
-  const getStatus = (current: number, min: number) => {
-    if (current === 0) return { label: 'نفد', color: 'bg-accent-danger/10 text-accent-danger', dot: 'bg-accent-danger' };
-    if (current <= min) return { label: 'منخفض', color: 'bg-accent-warning/10 text-accent-warning', dot: 'bg-accent-warning' };
-    return { label: 'وفير', color: 'bg-accent-success/10 text-accent-success', dot: 'bg-accent-success' };
+  const getStatusInfo = (current: number, min: number) => {
+    if (current === 0) return { id: 'out', label: 'نفد', color: 'bg-accent-danger/10 text-accent-danger', dot: 'bg-accent-danger' };
+    if (current <= min) return { id: 'low', label: 'منخفض', color: 'bg-accent-warning/10 text-accent-warning', dot: 'bg-accent-warning' };
+    return { id: 'good', label: 'وفير', color: 'bg-accent-success/10 text-accent-success', dot: 'bg-accent-success' };
   };
 
   const columns = [
@@ -51,7 +54,7 @@ export const ProductsPage: React.FC = () => {
       header: 'الحالة',
       render: (p: Product) => {
         const item = data.inventory.find(i => i.productId === p.id);
-        const status = getStatus(item?.currentQty || 0, p.minStock);
+        const status = getStatusInfo(item?.currentQty || 0, p.minStock);
         return (
           <div className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-2 w-fit ${status.color}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`}></span>
@@ -163,42 +166,73 @@ export const ProductsPage: React.FC = () => {
     setEditingProduct(undefined);
   };
 
-  const filteredProducts = data.products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(data.products.map(p => p.category)));
+    return [
+      { value: 'all', label: 'كل الفئات' },
+      ...unique.map(c => ({ value: c, label: c }))
+    ];
+  }, [data.products]);
+
+  const statuses = [
+    { value: 'all', label: 'كل الحالات' },
+    { value: 'good', label: 'وفير' },
+    { value: 'low', label: 'منخفض' },
+    { value: 'out', label: 'نفد' },
+  ];
+
+  const filteredProducts = useMemo(() => {
+    return data.products.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           p.code.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+      
+      const item = data.inventory.find(i => i.productId === p.id);
+      const statusInfo = getStatusInfo(item?.currentQty || 0, p.minStock);
+      const matchesStatus = statusFilter === 'all' || statusInfo.id === statusFilter;
+      
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [data.products, data.inventory, searchTerm, categoryFilter, statusFilter]);
 
   return (
     <div className="space-y-6 pb-10">
       {/* Top Actions Section */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+            <div className="relative flex-1 md:w-80 min-w-[200px]">
                 <input 
                     type="text" 
                     placeholder="بحث سريع (كود، اسم...)"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-white border border-border-color rounded-xl py-2 px-4 pr-10 text-sm font-Tajawal focus:ring-2 focus:ring-accent-primary/10 outline-none transition-all"
+                    className="w-full bg-white border border-border-color rounded-xl py-3 px-4 pr-10 text-sm font-Tajawal focus:ring-4 focus:ring-accent-primary/10 focus:border-accent-primary outline-none transition-all shadow-sm"
                 />
-                <svg className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <svg className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             </div>
-            <select className="bg-white border border-border-color rounded-xl py-2 px-4 text-sm font-Tajawal outline-none cursor-pointer">
-                <option value="">كل الفئات</option>
-                {Array.from(new Set(data.products.map(p => p.category))).map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select className="bg-white border border-border-color rounded-xl py-2 px-4 text-sm font-Tajawal outline-none cursor-pointer">
-                <option value="">كل الحالات</option>
-                <option value="good">وفير</option>
-                <option value="low">منخفض</option>
-                <option value="out">نفد</option>
-            </select>
+            
+            <Select 
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as string)}
+              options={categories}
+              className="!w-48"
+              placeholder="كل الفئات"
+            />
+
+            <Select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as string)}
+              options={statuses}
+              className="!w-48"
+              placeholder="كل الحالات"
+            />
         </div>
 
         {canManage && (
             <button 
                 onClick={() => { setEditingProduct(undefined); setIsModalOpen(true); }}
-                className="w-full md:w-auto bg-accent-primary text-white font-Cairo font-bold py-2.5 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-accent-secondary transition-colors shadow-lg shadow-accent-primary/20"
+                className="w-full md:w-auto bg-accent-primary text-white font-Cairo font-black py-3 px-8 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-accent-primary/20"
             >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 <span>إضافة منتج جديد</span>
@@ -206,11 +240,13 @@ export const ProductsPage: React.FC = () => {
         )}
       </div>
 
-      <Table 
-        columns={columns} 
-        data={filteredProducts} 
-        emptyMessage="لا توجد منتجات مسجلة حالياً"
-      />
+      <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+        <Table 
+          columns={columns} 
+          data={filteredProducts} 
+          emptyMessage="لا توجد منتجات مسجلة حالياً"
+        />
+      </div>
 
       <Modal
         isOpen={isDeleteModalOpen}
@@ -264,3 +300,4 @@ export const ProductsPage: React.FC = () => {
     </div>
   );
 };
+

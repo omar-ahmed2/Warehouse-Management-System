@@ -85,10 +85,27 @@ export const Sidebar: React.FC<{ isCollapsed: boolean; toggle: () => void }> = (
   return (
     <aside className={`
       fixed inset-y-0 right-0 z-40 bg-white border-l border-[var(--border-color)]
-      transition-all duration-300 flex flex-col
+      transition-all duration-300 flex flex-col h-screen
       ${isCollapsed ? 'translate-x-full lg:translate-x-0 lg:w-20' : 'translate-x-0 w-64'}
-      lg:static
+      lg:static lg:h-screen
     `}>
+      {/* Toggle Button */}
+      <button 
+        onClick={toggle}
+        className={`
+          absolute -left-3 top-10 w-6 h-6 bg-white border border-slate-200 rounded-full 
+          flex items-center justify-center text-slate-400 hover:text-accent-primary 
+          shadow-sm hover:shadow-md transition-all duration-300 z-50 group
+          ${isCollapsed ? 'rotate-180' : ''}
+          hidden lg:flex
+        `}
+        title={isCollapsed ? 'توسيع القائمة' : 'تصغير القائمة'}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="group-hover:scale-110 transition-transform">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+
       {/* Logo Area */}
       <div className="h-24 flex flex-col justify-center px-6">
         {!isCollapsed && (
@@ -102,7 +119,7 @@ export const Sidebar: React.FC<{ isCollapsed: boolean; toggle: () => void }> = (
                   <span className="text-[10px] text-text-muted font-Tajawal mt-1">نظام إدارة المخازن</span>
                 </div>
              </div>
-             <p className="text-[11px] text-accent-warning font-bold mr-12 mt-1">شركتي</p>
+             <p className="text-[11px] text-accent-warning font-bold mr-12 mt-1">{data.settings.companyName}</p>
           </div>
         )}
         {isCollapsed && (
