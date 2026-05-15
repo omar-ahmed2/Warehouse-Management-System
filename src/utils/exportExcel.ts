@@ -1,0 +1,17 @@
+export const exportToJSON = (data: any, fileName: string) => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${fileName}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+// Mock export for user's request
+export const exportToExcel = (data: any[], fileName: string) => {
+  console.log('Exporting to Excel (Mock):', data);
+  exportToJSON(data, fileName);
+};
